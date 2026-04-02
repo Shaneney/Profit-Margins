@@ -3,46 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProfitLens // Dashboard</title>
+    <title>ProfitLens £ // Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0a0a0c; color: #fff; min-height: 100vh; }
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
         .gradient-text { background: linear-gradient(90deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; }
-        .img-preview { width: 45px; height: 45px; border-radius: 12px; object-fit: cover; background: #222; }
+        input { background: rgba(255, 255, 255, 0.07) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; }
+        .img-preview { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; background: #222; }
+        .btn-update { display: none; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="p-4 md:p-8 pb-20">
 
     <div class="max-w-4xl mx-auto">
         <header class="flex justify-between items-center mb-10">
             <div>
                 <h1 class="text-3xl font-bold gradient-text tracking-tight">ProfitLens</h1>
-                <p class="text-gray-400 text-sm">Visual Inventory Tracker</p>
+                <p class="text-gray-400 text-sm">Inventory Management (£)</p>
             </div>
             <div class="glass p-4 rounded-2xl text-right">
-                <span class="block text-xs uppercase tracking-widest text-gray-500 font-semibold">Net Profit</span>
-                <span id="total-profit" class="text-2xl font-bold text-green-400">$0.00</span>
+                <span class="block text-xs uppercase tracking-widest text-gray-500 font-semibold">Total Profit</span>
+                <span id="total-profit" class="text-2xl font-bold text-green-400">£0.00</span>
             </div>
         </header>
 
         <section class="glass p-6 rounded-3xl mb-8">
-            <h2 class="text-lg font-semibold mb-4 text-indigo-300">New Transaction</h2>
+            <h2 id="form-title" class="text-lg font-semibold mb-4 text-indigo-300">Add New Item</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <input type="text" id="item-name" placeholder="Item Name" class="p-3 rounded-xl outline-none focus:ring-2 ring-indigo-500">
-                <div class="flex gap-2">
-                    <input type="number" id="buy-price" placeholder="Buy $" class="p-3 rounded-xl w-1/2 outline-none">
-                    <input type="number" id="sell-price" placeholder="Sell $" class="p-3 rounded-xl w-1/2 outline-none">
-                </div>
+                <input type="text" id="item-url" placeholder="Listing URL (eBay, Vinted, etc.)" class="p-3 rounded-xl outline-none focus:ring-2 ring-indigo-500">
             </div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <input type="number" id="buy-price" placeholder="Buy £" class="p-3 rounded-xl outline-none">
+                <input type="number" id="sell-price" placeholder="Sell £" class="p-3 rounded-xl outline-none">
+            </div>
+            
             <div class="flex flex-col md:flex-row gap-4 items-center">
                 <label class="w-full md:w-auto flex-grow cursor-pointer bg-white/5 hover:bg-white/10 border border-dashed border-white/20 p-3 rounded-xl text-center text-gray-400 transition">
-                    <span id="file-label">📸 Tap to add photo</span>
+                    <span id="file-label">📸 Add Photo</span>
                     <input type="file" id="item-image" accept="image/*" class="hidden" onchange="updateFileLabel()">
                 </label>
-                <button onclick="addItem()" class="w-full md:w-48 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-indigo-500/20">Add Entry</button>
+                <button id="add-btn" onclick="addItem()" class="w-full md:w-48 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-indigo-500/20">Add Entry</button>
+                <button id="update-btn" onclick="saveEdit()" class="btn-update w-full md:w-48 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition">Save Changes</button>
             </div>
         </section>
 
@@ -55,7 +59,7 @@
                             <th class="p-4">Buy</th>
                             <th class="p-4">Sell</th>
                             <th class="p-4">Profit</th>
-                            <th class="p-4 text-center">Action</th>
+                            <th class="p-4 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="inventory-list"></tbody>
@@ -66,34 +70,70 @@
 
     <script>
         let items = JSON.parse(localStorage.getItem('profitItems')) || [];
+        let editIndex = null;
 
         function updateFileLabel() {
             const input = document.getElementById('item-image');
-            document.getElementById('file-label').innerText = input.files[0] ? "✅ Photo ready" : "📸 Tap to add photo";
+            document.getElementById('file-label').innerText = input.files[0] ? "✅ Photo Selected" : "📸 Add Photo";
         }
 
         async function addItem() {
             const name = document.getElementById('item-name').value;
+            const url = document.getElementById('item-url').value;
             const buy = parseFloat(document.getElementById('buy-price').value);
             const sell = parseFloat(document.getElementById('sell-price').value);
             const fileInput = document.getElementById('item-image');
             
             let imageData = "";
+            if (fileInput.files && fileInput.files[0]) imageData = await convertBase64(fileInput.files[0]);
 
-            if (fileInput.files && fileInput.files[0]) {
-                imageData = await convertBase64(fileInput.files[0]);
-            }
-
-            if (name && !isNaN(buy) && !isNaN(sell)) {
-                items.push({ name, buy, sell, image: imageData });
-                // Reset inputs
-                document.getElementById('item-name').value = '';
-                document.getElementById('buy-price').value = '';
-                document.getElementById('sell-price').value = '';
-                document.getElementById('item-image').value = '';
-                document.getElementById('file-label').innerText = "📸 Tap to add photo";
+            if (name && !isNaN(buy)) {
+                items.push({ name, url, buy, sell, image: imageData });
+                clearForm();
                 render();
             }
+        }
+
+        function editItem(index) {
+            editIndex = index;
+            const item = items[index];
+            document.getElementById('item-name').value = item.name;
+            document.getElementById('item-url').value = item.url || '';
+            document.getElementById('buy-price').value = item.buy;
+            document.getElementById('sell-price').value = item.sell;
+            
+            document.getElementById('form-title').innerText = "Editing Item...";
+            document.getElementById('add-btn').style.display = 'none';
+            document.getElementById('update-btn').style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function saveEdit() {
+            const fileInput = document.getElementById('item-image');
+            items[editIndex].name = document.getElementById('item-name').value;
+            items[editIndex].url = document.getElementById('item-url').value;
+            items[editIndex].buy = parseFloat(document.getElementById('buy-price').value);
+            items[editIndex].sell = parseFloat(document.getElementById('sell-price').value);
+            
+            if (fileInput.files && fileInput.files[0]) {
+                items[editIndex].image = await convertBase64(fileInput.files[0]);
+            }
+
+            editIndex = null;
+            clearForm();
+            render();
+        }
+
+        function clearForm() {
+            document.getElementById('item-name').value = '';
+            document.getElementById('item-url').value = '';
+            document.getElementById('buy-price').value = '';
+            document.getElementById('sell-price').value = '';
+            document.getElementById('item-image').value = '';
+            document.getElementById('file-label').innerText = "📸 Add Photo";
+            document.getElementById('form-title').innerText = "Add New Item";
+            document.getElementById('add-btn').style.display = 'block';
+            document.getElementById('update-btn').style.display = 'none';
         }
 
         function convertBase64(file) {
@@ -112,31 +152,40 @@
 
             items.forEach((item, index) => {
                 const profit = item.sell - item.buy;
-                total += profit;
-                const imgTag = item.image ? `<img src="${item.image}" class="img-preview mr-3">` : `<div class="img-preview mr-3 flex items-center justify-center text-xs text-gray-600">No Pic</div>`;
-                
+                total += isNaN(profit) ? 0 : profit;
+                const imgTag = item.image ? `<img src="${item.image}" class="img-preview mr-3">` : `<div class="img-preview mr-3 flex items-center justify-center text-[10px] text-gray-600 bg-white/5">N/A</div>`;
+                const urlLink = item.url ? `<a href="${item.url}" target="_blank" class="text-indigo-400 block text-xs hover:underline mt-1">View Listing ↗</a>` : '';
+
                 list.innerHTML += `
                     <tr class="border-b border-white/5 hover:bg-white/5 transition">
-                        <td class="p-4 flex items-center">
-                            ${imgTag}
-                            <span class="font-medium">${item.name}</span>
+                        <td class="p-4">
+                            <div class="flex items-center">
+                                ${imgTag}
+                                <div>
+                                    <span class="font-medium block">${item.name}</span>
+                                    ${urlLink}
+                                </div>
+                            </div>
                         </td>
-                        <td class="p-4 text-gray-400 tracking-tight">$${item.buy}</td>
-                        <td class="p-4 text-gray-400 tracking-tight">$${item.sell}</td>
-                        <td class="p-4 font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'} tracking-tight">$${profit.toFixed(2)}</td>
+                        <td class="p-4 text-gray-400">£${item.buy}</td>
+                        <td class="p-4 text-gray-400">£${item.sell || 0}</td>
+                        <td class="p-4 font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}">£${(profit || 0).toFixed(2)}</td>
                         <td class="p-4 text-center">
-                            <button onclick="removeItem(${index})" class="text-gray-600 hover:text-red-400 transition text-lg">✕</button>
+                            <div class="flex justify-center gap-3">
+                                <button onclick="editItem(${index})" class="text-gray-400 hover:text-indigo-400 transition">✏️</button>
+                                <button onclick="removeItem(${index})" class="text-gray-600 hover:text-red-400 transition">✕</button>
+                            </div>
                         </td>
                     </tr>
                 `;
             });
 
-            totalDisplay.innerText = `$${total.toFixed(2)}`;
+            totalDisplay.innerText = `£${total.toFixed(2)}`;
             localStorage.setItem('profitItems', JSON.stringify(items));
         }
 
         function removeItem(index) {
-            if(confirm("Delete this entry?")) {
+            if(confirm("Delete this item?")) {
                 items.splice(index, 1);
                 render();
             }
@@ -146,4 +195,5 @@
     </script>
 </body>
 </html>
+
 
