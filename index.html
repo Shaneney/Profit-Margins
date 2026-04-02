@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProfitLens // Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0a0a0c; color: #fff; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .gradient-text { background: linear-gradient(90deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; }
+    </style>
+</head>
+<body class="p-6">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="flex justify-between items-center mb-10">
+            <div>
+                <h1 class="text-3xl font-bold gradient-text tracking-tight">ProfitLens</h1>
+                <p class="text-gray-400 text-sm">Inventory & Earnings Analytics</p>
+            </div>
+            <div class="glass p-4 rounded-2xl text-right">
+                <span class="block text-xs uppercase tracking-widest text-gray-500 font-semibold">Total Profit</span>
+                <span id="total-profit" class="text-2xl font-bold text-green-400">$0.00</span>
+            </div>
+        </header>
+
+        <section class="glass p-6 rounded-3xl mb-8">
+            <h2 class="text-lg font-semibold mb-4">Add New Transaction</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <input type="text" id="item-name" placeholder="Item Name" class="p-3 rounded-xl outline-none focus:ring-2 ring-indigo-500 transition">
+                <input type="number" id="buy-price" placeholder="Buy Price" class="p-3 rounded-xl outline-none focus:ring-2 ring-indigo-500 transition">
+                <input type="number" id="sell-price" placeholder="Sell Price" class="p-3 rounded-xl outline-none focus:ring-2 ring-indigo-500 transition">
+                <button onclick="addItem()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-indigo-500/20">Log Entry</button>
+            </div>
+        </section>
+
+        <section class="glass rounded-3xl overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-white/5 border-b border-white/10 text-gray-400 text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="p-4">Item</th>
+                        <th class="p-4">Buy</th>
+                        <th class="p-4">Sell</th>
+                        <th class="p-4">Profit</th>
+                        <th class="p-4 text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-list">
+                    </tbody>
+            </table>
+        </section>
+    </div>
+
+    <script>
+        let items = JSON.parse(localStorage.getItem('profitItems')) || [];
+
+        function render() {
+            const list = document.getElementById('inventory-list');
+            const totalDisplay = document.getElementById('total-profit');
+            list.innerHTML = '';
+            let total = 0;
+
+            items.forEach((item, index) => {
+                const profit = item.sell - item.buy;
+                total += profit;
+                list.innerHTML += `
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition">
+                        <td class="p-4 font-medium">${item.name}</td>
+                        <td class="p-4 text-gray-400">$${item.buy}</td>
+                        <td class="p-4 text-gray-400">$${item.sell}</td>
+                        <td class="p-4 font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}">$${profit.toFixed(2)}</td>
+                        <td class="p-4 text-center">
+                            <button onclick="removeItem(${index})" class="text-gray-500 hover:text-red-400 transition">✕</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            totalDisplay.innerText = `$${total.toFixed(2)}`;
+            localStorage.setItem('profitItems', JSON.stringify(items));
+        }
+
+        function addItem() {
+            const name = document.getElementById('item-name').value;
+            const buy = parseFloat(document.getElementById('buy-price').value);
+            const sell = parseFloat(document.getElementById('sell-price').value);
+
+            if (name && !isNaN(buy) && !isNaN(sell)) {
+                items.push({ name, buy, sell });
+                document.getElementById('item-name').value = '';
+                document.getElementById('buy-price').value = '';
+                document.getElementById('sell-price').value = '';
+                render();
+            }
+        }
+
+        function removeItem(index) {
+            items.splice(index, 1);
+            render();
+        }
+
+        render();
+    </script>
+</body>
+</html>
